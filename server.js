@@ -54,6 +54,25 @@ console.log('Server running at http://'+config.listen_host+':'+config.listen_por
 // The queue processor
 //
 
+var parsed_endpoint = url.parse(config.queue_endpoint);
+var request_options = {
+	host: parsed_endpoint['hostname'],
+	port: parsed_endpoint['port'],
+	path: parsed_endpoint['pathname'] + parsed_endpoint['search'],
+	method: 'POST'
+};
+
 queue.on('added', function(data){
-	console.log('Added: '+data);
+	var req = http.request(request_options, function(res){
+		console.log('STATUS: ' + res.statusCode);
+		console.log('HEADERS: ' + JSON.stringify(res.headers));
+		res.setEncoding('utf8');
+		res.on('data', function (chunk){
+			console.log('BODY: ' + chunk);
+		});
+	});
+
+	// write data to request body
+	req.write(JSON.stringify(data.payload));
+	req.end();
 });
