@@ -18,31 +18,56 @@ http.createServer(function(req, res){
 	if (req.method == 'POST'){
 		req.setEncoding('utf8');
 		
+		// How much data to read?
 		var content_length = req.headers['content-length'];
 		
-		var payload = '';
+		var payload = ''; // The data that got posted
 		req.on('data', function(data){
 			payload += data;
 			
+			// Are we done?
 			if (Buffer.byteLength(payload) == content_length){
-				console.log('POST full data: '+payload);
+				res.statusCode = 400; // Assume the worst
 				
-				queue.push(payload);
+				// Parse to json and test sanity
+				try{
+					var obj = JSON.parse(payload);
+				}
+				catch(err){
+					res.end('Invalid json');
+				}
 				
-				res.writeHead(200, {'Content-Type': 'text/plain'});
-				res.end('ok');
+				if (obj){
+					if (!obj.url){
+						res.end('Missing url');
+					}
+					else if (!obj.payload){
+						res.end('Missing payload');
+					}
+					else{
+						// Good! push to the queue
+						queue.push(obj);
+					
+						res.statusCode = 200;
+						res.end('ok');
+					}
+				}
 			}
-		});
-		
-		req.on('end', function(){
-			console.log("FIN\n");
 		});
 	}
 	else{
 		res.writeHead(200, {'Content-Type': 'text/plain'});
-		res.end('Hello World\n');
+		res.end("This isn't what you want. You want to POST here.");
 	}
 	
 }).listen(config.listen_port, config.listen_host);
 
 console.log('Server running at http://'+config.listen_host+':'+config.listen_port+'/');
+
+//
+// The queue processor
+//
+
+queue.on('added', function(data){
+	console.log('Added: '+data);
+});
