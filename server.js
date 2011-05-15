@@ -27,30 +27,16 @@ http.createServer(function(req, res){
 			
 			// Are we done?
 			if (Buffer.byteLength(payload) == content_length){
-				res.statusCode = 400; // Assume the worst
 				
-				// Parse to json and test sanity
+				// Attempt to push on the queue
 				try{
-					var obj = JSON.parse(payload);
+					queue.push(payload);
+					res.statusCode = 200;
+					res.end('ok');
 				}
 				catch(err){
-					res.end('Invalid json');
-				}
-				
-				if (obj){
-					if (!obj.url){
-						res.end('Missing url');
-					}
-					else if (!obj.payload){
-						res.end('Missing payload');
-					}
-					else{
-						// Good! push to the queue
-						queue.push(obj);
-					
-						res.statusCode = 200;
-						res.end('ok');
-					}
+					res.statusCode = 400;
+					res.end(err);
 				}
 			}
 		});
