@@ -1,0 +1,4 @@
+notify:
+  webhooks:
+    # A list of hashes representing hooks. Only the url field is supported.
+    - url: https://tinyspeck.dev.slack.com/services/hooks/travis?token=LxdE55485qOUR4qSnpOigrUX
