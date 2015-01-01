@@ -58,21 +58,52 @@ var parsed_endpoint = url.parse(config.queue_endpoint);
 var request_options = {
 	host: parsed_endpoint['hostname'],
 	port: parsed_endpoint['port'],
-	path: parsed_endpoint['pathname'] + parsed_endpoint['search'],
+	path: parsed_endpoint['pathname'] + (parsed_endpoint['search'] ? parsed_endpoint['search'] : ''),
 	method: 'POST'
 };
 
-queue.on('added', function(data){
-	var req = http.request(request_options, function(res){
-		console.log('STATUS: ' + res.statusCode);
-		console.log('HEADERS: ' + JSON.stringify(res.headers));
-		res.setEncoding('utf8');
-		res.on('data', function (chunk){
-			console.log('BODY: ' + chunk);
-		});
-	});
+var threads = 0;
+var processed = 0;
+var errors = 0;
 
-	// write data to request body
-	req.write(JSON.stringify(data.payload));
-	req.end();
+queue.on('added', function(added_data){
+	if (threads < config.max_threads){
+		// We want the oldest on the stack
+		var data = queue.shift();
+
+		threads++;
+		var req = http.request(request_options, function(res){
+
+			res.on('end', function(){
+				if (res.statusCode != 200){
+					queue.push(data);
+					errors++;
+				}
+
+				threads--;
+				processed++;
+			});
+		});
+
+		req.on('error', function(e) {
+			console.log('problem with request: ' + e.message);
+			queue.push(data);
+			threads--;
+
+			errors++;
+		});
+
+		// write data to request body
+		req.write(JSON.stringify(data.payload));
+		req.end();
+	}
 });
+
+
+//
+// Set an interval for stats reporting
+//
+
+setInterval(function(){
+	console.log('Queue size: '+queue.length()+', threads: '+threads+', processed: '+processed+', errors: '+errors);
+}, 10000);
